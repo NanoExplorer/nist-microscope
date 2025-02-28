@@ -192,6 +192,7 @@ plotWindow::plotWindow(zmq::context_t *context_in, options *opt, QWidget *parent
     // Make y-axis units options be exclusive
     yaxisUnitsActionGroup.addAction(ui->actionY_axis_raw_units);
     yaxisUnitsActionGroup.addAction(ui->actionY_axis_phys_units);
+    yaxisUnitsActionGroup.addAction(ui->actionDivide_by_4);
     connect(&yaxisUnitsActionGroup, SIGNAL(triggered(QAction*)),
             this, SLOT(yaxisUnitsChanged(QAction*)));
 
@@ -237,7 +238,7 @@ plotWindow::plotWindow(zmq::context_t *context_in, options *opt, QWidget *parent
     mscopeSettings = new QSettings();
     preferVisibleMinMaxRange = mscopeSettings->value("plots/visibleMinMaxRange",false).toBool();
     preferYaxisRawUnits = mscopeSettings->value("plots/yaxisRawUnits", true).toBool();
-
+    divideBy4 = mscopeSettings -> value("plots/divideBy4", false).toBool();
     if (preferVisibleMinMaxRange)
         ui->actionShow_edit_ranges->trigger();
     else
@@ -248,7 +249,9 @@ plotWindow::plotWindow(zmq::context_t *context_in, options *opt, QWidget *parent
     startRefresh();
     updateQuickSelect(opt->chanGroups);
     plotTypeChanged(ui->actionRaw_pulse_records);
-    if (preferYaxisRawUnits)
+    if (divideBy4)
+        ui->actionDivide_by_4->trigger();
+    else if (preferYaxisRawUnits)
         ui->actionY_axis_raw_units->trigger();
     else
         ui->actionY_axis_phys_units->trigger();
@@ -427,7 +430,13 @@ void plotWindow::newPlotTrace(int tracenum, const QVector<double> &xdata,
             derivdata[i] = derivdata[i+1] - derivdata[i];
         derivdata[N-1] = derivdata[N-2];
         graph->setData(xdata, derivdata);
-    } else
+    } else if (checkers[tracenum]->isChecked() && divideBy4) {
+        QVector<double> scaled_data(ydata);
+        for (int i=0; i<N; i++)
+            scaled_data[i] /= 4;
+        graph->setData(xdata, scaled_data);
+    }
+    else
         graph->setData(xdata, ydata);
     rescalePlots(graph);
     updateXAxisRange(ui->plot->xAxis->range());
@@ -1233,13 +1242,19 @@ void plotWindow::yaxisUnitsChanged(QAction *action)
 {
     if (action == ui->actionY_axis_raw_units) {
         preferYaxisRawUnits = true;
+        divideBy4 = false;
     } else if (action == ui->actionY_axis_phys_units) {
         preferYaxisRawUnits = false;
-    } else
+        divideBy4 = false;
+    } else if (action == ui->actionDivide_by_4) {
+        divideBy4 = true;
+        preferYaxisRawUnits = true;
+    } else 
         return;
 
     // Save this choice so that future windows can be brought up in this state again.
     mscopeSettings->setValue("plots/yaxisRawUnits", preferYaxisRawUnits);
+    mscopeSettings -> setValue("plots/divideBy4", divideBy4);
     plotTypeChanged( plotMenuActionGroup.checkedAction() );
     ui->plot->replot();
 }

@@ -130,6 +130,7 @@ private:
     bool preferVisibleMinMaxRange;        ///< Whether user wants min/max/range boxes visible
     bool preferYaxisRawUnits;             ///< Whether user wants raw units on y axis
     bool hasErr;                          ///< Whether this source has error/FB channels
+    bool divideBy4;                       ///< some people (like carl) like having their raw error signal units divided by 4
     int nsensors;                         ///< How many sensors
     zmq::context_t *zmqcontext;
     zmq::socket_t *chansocket;
